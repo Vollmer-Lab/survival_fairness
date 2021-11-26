@@ -3,21 +3,45 @@
 ##  a) NoTrt mean = 10, Trt mean = 3. White sd = 3, BAME sd = 5
 ##  b) WhiteNoTrt (10, 3); WhiteTrt (9, 3); BAMENoTrt (10, 3); BAMETrt (7, 3)
 ##  c) Consider how the DGP changes over time, i.e. which group fails early and which fails late
+
 library(dplyr)
 library(ggplot2)
 library(distr6)
 library(patchwork)
 library(mlr3proba)
 library(mlr3extralearners)
+library(mlr3fairness)
 
-DGP <- \ (WNT_mean, WT_mean, MNT_mean, MT_mean, WNT_sd, WT_sd, MNT_sd, MT_sd) {
+filter_prediction_data.PredictionDataSurv = function(pdata, row_ids) {
+  keep = pdata$row_ids %in% row_ids
+  pdata$row_ids = pdata$row_ids[keep]
+  pdata$truth = pdata$truth[keep]
+
+  if (!is.null(pdata$crank)) {
+    pdata$crank = pdata$crank[keep]
+  }
+  if (!is.null(pdata$distr)) {
+    if (inherits(pdata$distr, "VectorDistribution")) {
+      pdata$distr = pdata$distr[keep]
+    } else {
+      pdata$distr = pdata$distr[keep, ]
+    }
+  }
+  if (!is.null(pdata$lp)) {
+    pdata$lp = pdata$lp[keep]
+  }
+
+  pdata
+}
+
+DGP <- function(WNT_mean, WT_mean, MNT_mean, MT_mean, WNT_sd, WT_sd, MNT_sd, MT_sd) {
   dstrs("Lognormal",
     pars = data.frame(mean = c(WNT_mean, WT_mean, MNT_mean, MT_mean),
                       sd = c(WNT_sd, WT_sd, MNT_sd, MT_sd))
   )
 }
 
-generator <- \ (DGP, p_white, p_trt) {
+generator <- function (DGP, p_white, p_trt) {
 
   function(n, seed) {
     set.seed(seed)
@@ -36,9 +60,13 @@ generator <- \ (DGP, p_white, p_trt) {
         white = factor(white),
         trt = factor(trt)
       ) %>%
-      as_task_surv()
+      as_task_surv() %>%
+      set_pta()
   }
 }
+
+
+set_pta = function(task) {task$col_roles$pta = "white"; return(task)}
 
 LearnerDGP <- R6::R6Class(
   "LearnerDGP",
@@ -73,7 +101,7 @@ LearnerDGP <- R6::R6Class(
 )
 utils::getFromNamespace("mlr_learners", ns = "mlr3")$add("surv.dgp", LearnerDGP)
 
-plot_task <- \ (task) {
+plot_task <- function(task) {
   dat <- task$data() %>%
     mutate(white = if_else(white == 0, "min", "whi"),
           trt = if_else(trt == 1, "trt", "no_trt"),
@@ -90,11 +118,19 @@ plot_task <- \ (task) {
   theme(legend.title = element_blank())
 }
 
-predict_eval <- \ (learner, test, meas = msr("surv.graf")) {
+predict_eval <- function(learner, test, meas = msr("surv.graf")) {
   which_whi <- which(test$data()$white == 1)
   which_min <- which(test$data()$white == 0)
-  white <- learner$predict(test, which_whi)$score(meas)
-  minority <- learner$predict(test, which_min)$score(meas)
-  overall <- learner$predict(test)$score(meas)
+  white <- learner$predict(test, which_whi)$score(meas, task = test, train_set = seq_len(test$nrow)[1:10])
+  minority <- learner$predict(test, which_min)$score(meas, task = test, train_set =  seq_len(test$nrow)[1:10])
+  overall <- learner$predict(test)$score(meas, task = test, train_set =  seq_len(test$nrow)[1:10])
   data.frame(white = white, minority = minority, overall = overall)
+}
+
+predict_eval_2 <- function(learner, test, meas = msr("surv.cindex")) {
+  ms = c(mlr3fairness::groupwise_metrics(meas, test), meas)
+  scores <- learner$predict(test)$score(ms, task = test, train_set = seq_len(test$nrow))
+  pta = mlr3fairness:::get_pta(test, rows = NULL)
+  learner$predict(test, row_ids = test$row_ids[pta == "0"])$score(msr("surv.cindex"))
+  data.frame(white = scores[2], minority = scores[1], overall = scores[3])
 }
