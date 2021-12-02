@@ -90,12 +90,15 @@ server <- function(input, output, session) {
     shinyjs::hide(id = "int_plot")
     shinyjs::hide(id = "div_draw")
     shinyjs::hide(id = "txt")
+    
     keep <- !(is.na(vals$x) | is.na(vals$y) | duplicated(vals$x))
     vals$x = vals$x[keep]
     vals$y = vals$y[keep]
+
     ord = order(vals$x)
     vals$x = vals$x[ord]
     vals$y = vals$y[ord]
+    
     cdf = switch(input$fun,
                  "p(T)" = c(vals$y, cumsum(vals$y)),
                  "F(T)" = vals$y,
@@ -105,6 +108,8 @@ server <- function(input, output, session) {
     keep <- vals$x >= 0 & cdf <= 1 & cdf >= 0
     cdf = cdf[keep]
     vals$x  = vals$x[keep]
+    vals$y  = vals$y[keep]
+    
     output$xy = renderDataTable({matrix(x, cdf, nrow = 2)})
     shinyjs::show(id = "xy")
     distr <<-  distr6::dstr("WeightedDiscrete", cdf = cdf, x = vals$x)
