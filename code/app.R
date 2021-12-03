@@ -105,7 +105,18 @@ server <- function(input, output, session) {
                  "S(T)" = 1 - vals$y,
                  "H(T)" = 1 - exp(-vals$y),
                  "h(T)" = 1 - exp(c(vals$y, cumsum(vals$y))))
-    keep <- vals$x >= 0 & cdf <= 1 & cdf >= 0
+    valid <- vals$x >= 0 & cdf <= 1 & cdf >= 0
+    
+    # the following code ensures that cdf is increasing. So that during simulation, there is no negative probabilty during simulation
+    currCdf <- 0
+    keep <- c()
+    for(i in which(valid)){
+      if(cdf[i] >= currCdf){
+          keep <- c(keep, i)
+          currCdf <- cdf[i]
+      }
+    }
+    
     cdf = cdf[keep]
     vals$x  = vals$x[keep]
     vals$y  = vals$y[keep]
