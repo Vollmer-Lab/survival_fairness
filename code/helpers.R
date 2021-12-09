@@ -4,41 +4,41 @@
 ##  b) WhiteNoTrt (10, 3); WhiteTrt (9, 3); BAMENoTrt (10, 3); BAMETrt (7, 3)
 ##  c) Consider how the DGP changes over time, i.e. which group fails early and which fails late
 
+library(data.table)
 library(dplyr)
 library(ggplot2)
 library(distr6)
 library(patchwork)
+library(mlr3misc)
 library(mlr3proba)
 library(mlr3extralearners)
 library(mlr3fairness)
 
-filter_prediction_data.PredictionDataSurv = function(pdata, row_ids) {
-  keep = pdata$row_ids %in% row_ids
-  pdata$row_ids = pdata$row_ids[keep]
-  pdata$truth = pdata$truth[keep]
-
-  if (!is.null(pdata$crank)) {
-    pdata$crank = pdata$crank[keep]
-  }
-  if (!is.null(pdata$distr)) {
-    if (inherits(pdata$distr, "VectorDistribution")) {
-      pdata$distr = pdata$distr[keep]
-    } else {
-      pdata$distr = pdata$distr[keep, ]
-    }
-  }
-  if (!is.null(pdata$lp)) {
-    pdata$lp = pdata$lp[keep]
-  }
-
-  pdata
-}
 
 DGP <- function(WNT_mean, WT_mean, MNT_mean, MT_mean, WNT_sd, WT_sd, MNT_sd, MT_sd) {
   dstrs("Lognormal",
     pars = data.frame(mean = c(WNT_mean, WT_mean, MNT_mean, MT_mean),
                       sd = c(WNT_sd, WT_sd, MNT_sd, MT_sd))
   )
+}
+
+# Wrapper for DGP:
+# trt_effect = additive treatment effect on location
+# maj_mean = location majority group
+# mnt_mean = location minority group
+# maj_sd = sd in majority group
+# mnt_sd = sd in minority group
+# ... thrown away
+DGPw = function(trt_effect = 1, maj_mean = 3, mnt_mean = 3, maj_sd = 2, mnt_sd = 2, ...) {
+  WT_mean = maj_mean + trt_effect
+  WNT_mean = maj_mean
+  MNT_mean = mnt_mean
+  MT_mean = mnt_mean
+  WNT_sd = maj_sd
+  WT_sd = maj_sd
+  MNT_sd = mnt_sd
+  MT_sd = mnt_sd
+  DGP(WNT_mean, WT_mean, MNT_mean, MT_mean, WNT_sd, WT_sd, MNT_sd, MT_sd)
 }
 
 generator <- function (DGP, p_white, p_trt) {
@@ -127,10 +127,20 @@ predict_eval <- function(learner, test, meas = msr("surv.graf")) {
   data.frame(white = white, minority = minority, overall = overall)
 }
 
-predict_eval_2 <- function(learner, test, meas = msr("surv.cindex")) {
-  ms = c(mlr3fairness::groupwise_metrics(meas, test), meas)
-  scores <- learner$predict(test)$score(ms, task = test, train_set = seq_len(test$nrow))
-  pta = mlr3fairness:::get_pta(test, rows = NULL)
-  learner$predict(test, row_ids = test$row_ids[pta == "0"])$score(msr("surv.cindex"))
-  data.frame(white = scores[2], minority = scores[1], overall = scores[3])
+eval_groupwise <- function(learner, test, meas = msrs(c("surv.cindex", "surv.graf"))) {
+  prds = learner$predict(test)
+  map_dtr(meas, function(m) {
+    ms = c(groupwise_metrics(m, test), m)
+    scores = prds$score(ms, task = test, train_set = seq_len(test$nrow))
+    data.table("group_0" = scores[1], "group_1" = scores[2], "global" = scores[3], "metric" = m$id)
+  })
+}
+
+
+eval_dgpw = function(config) {
+  d <- invoke(DGPw, args = config)
+  generate <- generator(DGP = d, p_white = config$p_white, p_trt = config$p_trt)
+  train    <- generate(n = config$n_train, seed = config$seed)
+  test     <- generate(n = config$n_test, seed = config$seed + 1)
+  eval_groupwise(lrn("surv.coxph")$train(train), test)
 }
