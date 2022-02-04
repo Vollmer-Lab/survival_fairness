@@ -3,8 +3,14 @@ library(mlr3proba)
 library(mlr3fairness)
 library(mlr3learners)
 
-x = replicate(50, {
-  measures = c(msrs(c("surv.cindex", "surv.graf")), msr("surv.graf", proper = TRUE, id = "graf_proper"))
+set.seed(20220208)
+
+x = replicate(10, {
+  measures = c(
+    msrs(c("surv.cindex", "surv.graf", "surv.calib_alpha",
+    "surv.calib_beta", "surv.dcalib")),
+    msr("surv.graf", proper = TRUE, id = "graf_proper")
+  )
   task = tsk("whas")
   task$col_roles$pta <- "sexF"
   # task before biasing
@@ -12,11 +18,10 @@ x = replicate(50, {
     groupwise_metrics,
     task = task
   )
-
   score_before = resample(
     task,
     lrn("surv.coxph"),
-    rsmp("cv")
+    rsmp("cv", folds = 3)
   )$aggregate(unlist(m))
   score_before = setNames(c(
     abs(score_before[1] - score_before[2]),
@@ -46,17 +51,21 @@ x = replicate(50, {
   score_after = resample(
     task,
     lrn("surv.coxph"),
-    rsmp("cv")
+    rsmp("cv", folds = 3)
   )$aggregate(unlist(m))
   score_after = setNames(c(
     abs(score_after[1] - score_after[2]),
     abs(score_after[3] - score_after[4]),
-    abs(score_after[5] - score_after[6])
-  ), c("cindex", "graf", "graf_proper"))
+    abs(score_after[5] - score_after[6]),
+    abs(score_after[7] - score_after[8]),
+    abs(score_after[9] - score_after[10]),
+    abs(score_after[11] - score_after[12])
+  ), c("cindex", "graf", "calib_alpha", "calib_beta",
+      "dcalib", "graf_proper"))
 
   rbind(before = score_before, after = score_after)
 })
 
-t(apply(x, c(1, 2), function(.x) {
+t(apply(round(x, 3), c(1, 2), function(.x) {
   mean(.x[.x != Inf])
 }))
