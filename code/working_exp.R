@@ -1,0 +1,62 @@
+library(survival)
+library(mlr3proba)
+library(mlr3fairness)
+library(mlr3learners)
+
+x = replicate(50, {
+  measures = c(msrs(c("surv.cindex", "surv.graf")), msr("surv.graf", proper = TRUE, id = "graf_proper"))
+  task = tsk("whas")
+  task$col_roles$pta <- "sexF"
+  # task before biasing
+  m = lapply(measures,
+    groupwise_metrics,
+    task = task
+  )
+
+  score_before = resample(
+    task,
+    lrn("surv.coxph"),
+    rsmp("cv")
+  )$aggregate(unlist(m))
+  score_before = setNames(c(
+    abs(score_before[1] - score_before[2]),
+    abs(score_before[3] - score_before[4]),
+    abs(score_before[5] - score_before[6])
+  ), c("cindex", "graf", "graf_proper"))
+
+  # task after biasing
+  d = task$data()
+  dadv = d$sexF == 0
+  sumdadv = sum(dadv)
+  for (which in setdiff(colnames(d), "sexF")) {
+    if (is.factor(d[[which]])) {
+      d[dadv, which] <- sample(levels(d[[which]]), sumdadv, TRUE)
+    } else {
+      d[dadv, which] <- round(runif(sumdadv, min(d[[which]]), max(d[[which]])))
+    }
+  }
+
+  task = as_task_surv(d, event = "status")
+  task$col_roles$pta <- "sexF"
+  # task before biasing
+  m = lapply(measures,
+    groupwise_metrics,
+    task = task
+  )
+  score_after = resample(
+    task,
+    lrn("surv.coxph"),
+    rsmp("cv")
+  )$aggregate(unlist(m))
+  score_after = setNames(c(
+    abs(score_after[1] - score_after[2]),
+    abs(score_after[3] - score_after[4]),
+    abs(score_after[5] - score_after[6])
+  ), c("cindex", "graf", "graf_proper"))
+
+  rbind(before = score_before, after = score_after)
+})
+
+t(apply(x, c(1, 2), function(.x) {
+  mean(.x[.x != Inf])
+}))

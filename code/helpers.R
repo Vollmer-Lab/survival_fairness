@@ -14,13 +14,20 @@ library(mlr3proba)
 library(mlr3extralearners)
 library(mlr3fairness)
 
+stopifnot(packageVersion("mlr3fairness") >= "0.2.0")
+stopifnot(packageVersion("mlr3proba") >= "0.4.2.9000")
 
-DGP <- function(WNT_mean, WT_mean, MNT_mean, MT_mean, WNT_sd, WT_sd, MNT_sd, MT_sd) {
-  dstrs("Lognormal",
-    pars = data.frame(mean = c(WNT_mean, WT_mean, MNT_mean, MT_mean),
-                      sd = c(WNT_sd, WT_sd, MNT_sd, MT_sd))
-  )
+
+DGP_adv <- function(n) {
+  rexp(n, 1 / 30)
 }
+DGP_disadv <- function(n, T, sd = 1) {
+  t <- rexp(n, 1 / 30)
+  which <- t >= T
+  t[which] <- t[which] + abs(rnorm(sum(which), 0, sd))
+  t
+}
+
 
 # Wrapper for DGP:
 # trt_effect = additive treatment effect on location
