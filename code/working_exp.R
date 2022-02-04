@@ -5,6 +5,10 @@ library(mlr3learners)
 
 set.seed(20220208)
 
+## list of measures
+grep("surv", mlr3::mlr_measures$keys(), value = TRUE)
+
+
 x = replicate(10, {
   measures = c(
     msrs(c("surv.cindex", "surv.graf", "surv.calib_alpha",
@@ -66,6 +70,8 @@ x = replicate(10, {
   rbind(before = score_before, after = score_after)
 })
 
-t(apply(round(x, 3), c(1, 2), function(.x) {
+x = t(apply(round(x, 3), c(1, 2), function(.x) {
   mean(.x[.x != Inf])
 }))
+
+round(cbind(x, difference = abs(x[, 1] - x[, 2])), 3)
