@@ -37,8 +37,8 @@ runExp = function(task = "whas", p_disadv = 0.5, lrn = "surv.coxph",
   d = task$data()
   d$pta = rbinom(task$nrow, 1, p_disadv)
 
-  cutoffs = unique(round(quantile(task$times())))
-  # cutoffs = 0 ## bias everyone
+  # cutoffs = unique(round(quantile(task$times())))
+  cutoffs = 0 ## bias everyone
   out = matrix(0, length(cutoffs), length(measures))
   for (i in seq_along(cutoffs)) {
     t = cutoffs[[i]]
@@ -68,11 +68,12 @@ runExp = function(task = "whas", p_disadv = 0.5, lrn = "surv.coxph",
   out
 }
 
-ret = array(NA, c(5, 6, 3))
-props = c(0.1, 0.5, 0.9)
+props = seq.int(0.1, 0.9, 0.1)
+ret = array(NA, c(1, length(measures), length(props)))
+
 set.seed(340233490)
 for (i in seq_along(props)) {
-  x = replicate(5, runExp(p_disadv = props[[i]], resamp = rsmp("cv", folds = 3)))
+  x = replicate(2, runExp(p_disadv = props[[i]], resamp = rsmp("holdout")))
   x[x == Inf] = NA
   ret[, , i] = round(apply(x, c(1, 2), mean, na.rm = TRUE), 3)
 }
