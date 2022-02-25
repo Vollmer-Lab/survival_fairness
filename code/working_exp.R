@@ -2,76 +2,94 @@ library(survival)
 library(mlr3proba)
 library(mlr3fairness)
 library(mlr3learners)
+library(ggplot2)
+library(dplyr)
 
-set.seed(20220208)
 
 ## list of measures
 grep("surv", mlr3::mlr_measures$keys(), value = TRUE)
 
+measures = c(
+  msrs(c(
+    "surv.cindex", "surv.graf", "surv.calib_alpha",
+    "surv.calib_beta", "surv.dcalib"
+  )),
+  msr("surv.graf", proper = TRUE, id = "graf_proper")
+)
+setScores = function(scores) {
+  setNames(c(
+    abs(scores[1] - scores[2]),
+    abs(scores[3] - scores[4]),
+    abs(scores[5] - scores[6]),
+    abs(scores[7] - scores[8]),
+    abs(scores[9] - scores[10]),
+    abs(scores[11] - scores[12])
+  ), c(
+    "cindex", "graf", "calib_alpha", "calib_beta",
+    "dcalib", "graf_proper"
+  ))
+}
 
-x = replicate(10, {
-  measures = c(
-    msrs(c("surv.cindex", "surv.graf", "surv.calib_alpha",
-    "surv.calib_beta", "surv.dcalib")),
-    msr("surv.graf", proper = TRUE, id = "graf_proper")
-  )
-  task = tsk("whas")
-  task$col_roles$pta <- "sexF"
-  # task before biasing
-  m = lapply(measures,
-    groupwise_metrics,
-    task = task
-  )
-  score_before = resample(
-    task,
-    lrn("surv.coxph"),
-    rsmp("cv", folds = 3)
-  )$aggregate(unlist(m))
-  score_before = setNames(c(
-    abs(score_before[1] - score_before[2]),
-    abs(score_before[3] - score_before[4]),
-    abs(score_before[5] - score_before[6])
-  ), c("cindex", "graf", "graf_proper"))
+runExp = function(task = "whas", p_disadv = 0.5, lrn = "surv.coxph",
+                  resamp = rsmp("holdout"), event_col = "status") {
 
-  # task after biasing
+  task = tsk(task)
   d = task$data()
-  dadv = d$sexF == 0
-  sumdadv = sum(dadv)
-  for (which in setdiff(colnames(d), "sexF")) {
-    if (is.factor(d[[which]])) {
-      d[dadv, which] <- sample(levels(d[[which]]), sumdadv, TRUE)
-    } else {
-      d[dadv, which] <- round(runif(sumdadv, min(d[[which]]), max(d[[which]])))
+  d$pta = rbinom(task$nrow, 1, p_disadv)
+
+  cutoffs = unique(round(quantile(task$times())))
+  # cutoffs = 0 ## bias everyone
+  out = matrix(0, length(cutoffs), length(measures))
+  for (i in seq_along(cutoffs)) {
+    t = cutoffs[[i]]
+    dadv = d$pta == 1 & d$t >= t
+    sumdadv = sum(dadv)
+    for (which in setdiff(colnames(d), "pta")) {
+      col = d[[which]]
+      if (is.factor(col)) {
+        d[dadv, which] <- sample(levels(col), sumdadv, TRUE)
+      } else {
+        d[dadv, which] <- round(runif(sumdadv, min(col), max(col)))
+      }
     }
+
+    task = as_task_surv(d, event = event_col)
+    task$col_roles$pta <- "pta"
+    m = lapply(measures, groupwise_metrics, task = task)
+
+    score = setScores(resample(task, lrn(lrn), resamp)$aggregate(unlist(m)))
+
+    out[i, ] = round(score, 3)
   }
+  dimnames(out) <- list(cutoffs, c(
+    "cindex", "graf", "calib_alpha", "calib_beta",
+    "dcalib", "graf_proper"
+  ))
+  out
+}
 
-  task = as_task_surv(d, event = "status")
-  task$col_roles$pta <- "sexF"
-  # task before biasing
-  m = lapply(measures,
-    groupwise_metrics,
-    task = task
-  )
-  score_after = resample(
-    task,
-    lrn("surv.coxph"),
-    rsmp("cv", folds = 3)
-  )$aggregate(unlist(m))
-  score_after = setNames(c(
-    abs(score_after[1] - score_after[2]),
-    abs(score_after[3] - score_after[4]),
-    abs(score_after[5] - score_after[6]),
-    abs(score_after[7] - score_after[8]),
-    abs(score_after[9] - score_after[10]),
-    abs(score_after[11] - score_after[12])
-  ), c("cindex", "graf", "calib_alpha", "calib_beta",
-      "dcalib", "graf_proper"))
+ret = array(NA, c(5, 6, 3))
+props = c(0.1, 0.5, 0.9)
+set.seed(340233490)
+for (i in seq_along(props)) {
+  x = replicate(5, runExp(p_disadv = props[[i]], resamp = rsmp("cv", folds = 3)))
+  x[x == Inf] = NA
+  ret[, , i] = round(apply(x, c(1, 2), mean, na.rm = TRUE), 3)
+}
 
-  rbind(before = score_before, after = score_after)
-})
+dimnames(ret) <- c(dimnames(x)[1:2], list(props))
 
-x = t(apply(round(x, 3), c(1, 2), function(.x) {
-  mean(.x[.x != Inf])
-}))
 
-round(cbind(x, difference = abs(x[, 1] - x[, 2])), 3)
+reshape2::melt(ret) %>%
+  dplyr::group_by(Var2) %>%
+  dplyr::mutate(
+    Measure = Var2,
+    Time = Var1,
+    Prop = Var3,
+    value = value / sum(value)
+  ) %>%
+  dplyr::ungroup() %>%
+    ggplot(aes(x = Time, y = Measure, size = value, color = value)) +
+    facet_grid(cols = vars(Prop)) +
+    geom_point() +
+    theme_bw()
