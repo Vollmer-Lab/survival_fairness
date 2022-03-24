@@ -1,96 +1,88 @@
-library(survival)
+library(mlr3)
+library(mlr3extralearners)
 library(mlr3proba)
-library(mlr3fairness)
-library(mlr3learners)
-library(ggplot2)
 library(dplyr)
-
-
-## list of measures
-grep("surv", mlr3::mlr_measures$keys(), value = TRUE)
+library(ggplot2)
 
 measures = c(
-  msrs(c(
-    "surv.cindex", "surv.graf", "surv.calib_alpha",
-    "surv.calib_beta", "surv.dcalib"
-  )),
-  msr("surv.graf", proper = TRUE, id = "graf_proper")
+  msr("surv.graf", id = "IGS"),
+  msr("surv.graf", proper = TRUE, id = "IGS_proper"),
+  msr("surv.intlogloss", id = "ILL"),
+  msr("surv.intlogloss", proper = TRUE, id = "ILL_proper"),
+  msr("surv.logloss", id = "ILL"),
+  msr("surv.cindex", id = "cindex"),
+  msr("surv.dcalib", id = "dcalib"),
+  msr("surv.calib_alpha", id = "Hcalib")
 )
-setScores = function(scores) {
-  setNames(c(
-    abs(scores[1] - scores[2]),
-    abs(scores[3] - scores[4]),
-    abs(scores[5] - scores[6]),
-    abs(scores[7] - scores[8]),
-    abs(scores[9] - scores[10]),
-    abs(scores[11] - scores[12])
-  ), c(
-    "cindex", "graf", "calib_alpha", "calib_beta",
-    "dcalib", "graf_proper"
-  ))
-}
 
 runExp = function(task = "whas", p_disadv = 0.5, lrn = "surv.coxph",
-                  resamp = rsmp("holdout"), event_col = "status") {
+                  resamp = rsmp("holdout")) {
 
+  lrn = lrn(lrn)
   task = tsk(task)
-  d = task$data()
-  d$pta = rbinom(task$nrow, 1, p_disadv)
+  d = as.data.frame(task$data())
 
-  # cutoffs = unique(round(quantile(task$times())))
-  cutoffs = 0 ## bias everyone
-  out = matrix(0, length(cutoffs), length(measures))
-  for (i in seq_along(cutoffs)) {
-    t = cutoffs[[i]]
-    dadv = d$pta == 1 & d$t >= t
-    sumdadv = sum(dadv)
-    for (which in setdiff(colnames(d), "pta")) {
-      col = d[[which]]
-      if (is.factor(col)) {
-        d[dadv, which] <- sample(levels(col), sumdadv, TRUE)
-      } else {
-        d[dadv, which] <- round(runif(sumdadv, min(col), max(col)))
-      }
+  split = partition(task, ratio = 0.5)
+  adv = d[split$train, ]
+  disadv = d[split$test, ]
+
+  dadv = rbinom(nrow(disadv), 1, p_disadv) == 1
+  sumdadv = sum(dadv)
+  for (which in colnames(disadv)) {
+    col = disadv[[which]]
+    if (is.factor(col)) {
+      disadv[dadv, which] <- sample(levels(col), sumdadv, TRUE)
+    } else {
+      disadv[dadv, which] <- round(runif(sumdadv, min(col), max(col)))
     }
-
-    task = as_task_surv(d, event = event_col)
-    task$col_roles$pta <- "pta"
-    m = lapply(measures, groupwise_metrics, task = task)
-
-    score = setScores(resample(task, lrn(lrn), resamp)$aggregate(unlist(m)))
-
-    out[i, ] = round(score, 3)
   }
-  dimnames(out) <- list(cutoffs, c(
-    "cindex", "graf", "calib_alpha", "calib_beta",
-    "dcalib", "graf_proper"
-  ))
-  out
+
+  score_adv = resample(
+    as_task_surv(adv, event = 'status'),
+    lrn,
+    resamp
+  )$aggregate(measures)
+  score_disadv = resample(
+    as_task_surv(disadv, event = 'status'),
+    lrn,
+    resamp
+  )$aggregate(measures)
+
+    round(apply(
+      rbind(score_adv, score_disadv), 2,
+      function(x) abs(x[1] - x[2])
+    ), 3)
 }
 
-props = seq.int(0.1, 0.9, 0.1)
-ret = array(NA, c(1, length(measures), length(props)))
+props = seq.int(0, 1, 0.2)
+ret = matrix(NA, length(measures), length(props))
 
-set.seed(340233490)
 for (i in seq_along(props)) {
-  x = replicate(2, runExp(p_disadv = props[[i]], resamp = rsmp("holdout")))
+  x = replicate(10, runExp(
+    p_disadv = props[[i]],
+    resamp = rsmp("holdout")
+  ))
   x[x == Inf] = NA
-  ret[, , i] = round(apply(x, c(1, 2), mean, na.rm = TRUE), 3)
+  ret[, i] = rowMeans(x, na.rm = TRUE)
 }
 
-dimnames(ret) <- c(dimnames(x)[1:2], list(props))
+dimnames(ret) <- c(dimnames(x)[1], list(props))
 
+library(patchwork)
+reshape2::melt(t(ret)) %>%
+  dplyr::filter(grepl("^I", Var2)) %>%
+  ggplot(aes(x = Var1, y = value, group = Var2, color = Var2, fill = Var2)) +
+  geom_line() +
+  facet_wrap(vars(Var2)) +
+  labs(x = "P(Censoring)", y = "Bias") +
+  theme_bw() +
+  theme(legend.position = "n") +
 
-reshape2::melt(ret) %>%
-  dplyr::group_by(Var2) %>%
-  dplyr::mutate(
-    Measure = Var2,
-    Time = Var1,
-    Prop = Var3,
-    value = value / sum(value)
-  ) %>%
-  dplyr::ungroup() %>%
-    ggplot(aes(x = Time, y = Measure, size = value, color = value)) +
-    facet_grid(cols = vars(Prop)) +
-    geom_point() +
-    theme_bw()
+reshape2::melt(t(ret)) %>%
+  dplyr::filter(!grepl("^I", Var2)) %>%
+  ggplot(aes(x = Var1, y = value, group = Var2, color = Var2, fill = Var2)) +
+  geom_line() +
+  facet_wrap(vars(Var2), scales = "free") +
+  labs(x = "P(Censoring)", y = "Bias") +
+  theme_bw() +
+  theme(legend.position = "n")
