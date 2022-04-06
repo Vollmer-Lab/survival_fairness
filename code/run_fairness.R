@@ -2,6 +2,9 @@ library(mlr3proba)
 library(dplyr)
 set.seed(24)
 
+lgr::get_logger("mlr3")$set_threshold("warn")
+lgr::get_logger("bbotk")$set_threshold("warn")
+
 run_all = function(task, N_rep = 2, lrn = "surv.coxph", resamp = rsmp("holdout")) {
   run_one = function(task = tsk("whas"), p_disadv = 0.5, lrn = "surv.coxph",
                      resamp = rsmp("holdout")) {
@@ -87,21 +90,23 @@ file_stats <- file_stats[file_stats$nrow <= 1000, ]
 tasks <- mlr3misc::named_list(file_stats$name)
 
 for (i in seq_along(file_stats$file)) {
-  data = readRDS(files[i])
+  data = readRDS(file_stats$file[i])
 
-  task = as_task_surv(data, target = "time", event = "status", id = names[i])
+  task = as_task_surv(data, target = "time", event = "status", id = file_stats$name[i])
   #task$set_col_roles("status", add_to = "stratum")
   
   tasks[[i]] = task
   rm(data, task)
 }
 
+message("Running on ", length(tasks), " tasks")
+
 # Run in parallel
-tictoc::tic()
-future::plan("multisession")
-res <- furrr::future_map_dfr(tasks, run_all, N_rep = 2, .options = furrr::furrr_options(seed = TRUE))
-write.csv(res, fs::path(here::here("code"), "survival_fairness.csv"))
-tictoc::toc()
+# tictoc::tic()
+# future::plan("multisession")
+# res <- furrr::future_map_dfr(tasks, run_all, N_rep = 2, .options = furrr::furrr_options(seed = TRUE))
+# write.csv(res, fs::path(here::here("code"), "survival_fairness.csv"))
+# tictoc::toc()
 
 # Run sequentially
 # res <- lapply(tasks, run_all, N_rep = 2)
@@ -113,3 +118,27 @@ if (FALSE) {
   res <- run_all(tasks$hdfail, N_rep = 1)
   tictoc::toc()
 }
+
+# Do it slowly and step by step with try() for debugging and at least some results
+fs::dir_create(here::here("code/results"))
+for (task in tasks) {
+  message("Running on ", task$id)
+  res <- try(run_all(task, N_rep = 2))
+  
+  if (inherits(res, "try-error")) {
+    message("Failed at ", task$id)
+    next
+  }
+  # Writing results of each task separately for safety
+  write.csv(res, file = fs::path(here::here("code/results"), task$id, ext = "csv"))
+  message("Finished on ", task$id)
+}
+
+# reassemble results to previously intended format
+res_full <- fs::dir_ls(here::here("code/results"), glob = "*.csv") |>
+  purrr::map_df(read.csv)
+
+# This is character(0) so everything worked I guess? I'm confused
+setdiff(names(tasks), unique(res_full$Task))
+
+write.csv(res_full, fs::path(here::here("code"), "survival_fairness.csv"))
