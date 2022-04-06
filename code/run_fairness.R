@@ -71,6 +71,21 @@ run_all = function(task, N_rep = 2, lrn = "surv.coxph", resamp = rsmp("holdout")
     select(Measure, Prop, Score, Task)
 }
 
-tasks <- list(tsk("rats"), tsk("whas"))
+# tasks <- list(tsk("rats"), tsk("whas"))
+
+files <- dir(here::here("code/data"), pattern = "\\.rds$", full.names = TRUE)
+names <- fs::path_ext_remove(fs::path_file(files))
+tasks <- mlr3misc::named_list(names)
+
+for (i in seq_along(files)) {
+  data = readRDS(files[i])
+  
+  task = as_task_surv(data, target = "time", event = "status", id = names[i])
+  #task$set_col_roles("status", add_to = "stratum")
+  
+  tasks[[i]] = task
+  rm(data, task)
+}
+
 res <- lapply(tasks, run_all, N_rep = 2)
 write.csv(do.call(rbind, res), "survival_fairness.csv")
