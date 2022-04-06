@@ -115,14 +115,18 @@ message("Running on ", length(tasks), " tasks")
 # Single run for debugging
 if (FALSE) {
   tictoc::tic()
-  res <- run_all(tasks$hdfail, N_rep = 1)
+  res <- run_all(tasks$child, N_rep = 1)
   tictoc::toc()
 }
 
 # Do it slowly and step by step with try() for debugging and at least some results
 fs::dir_create(here::here("code/results"))
 for (task in tasks) {
+  res_path <- fs::path(here::here("code/results"), task$id, ext = "csv")
+  if (fs::file_exists(res_path)) next
+  
   message("Running on ", task$id)
+  
   res <- try(run_all(task, N_rep = 2))
   
   if (inherits(res, "try-error")) {
@@ -130,7 +134,7 @@ for (task in tasks) {
     next
   }
   # Writing results of each task separately for safety
-  write.csv(res, file = fs::path(here::here("code/results"), task$id, ext = "csv"))
+  write.csv(res, file = res_path)
   message("Finished on ", task$id)
 }
 
