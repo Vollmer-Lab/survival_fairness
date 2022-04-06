@@ -87,5 +87,11 @@ for (i in seq_along(files)) {
   rm(data, task)
 }
 
-res <- lapply(tasks, run_all, N_rep = 2)
-write.csv(do.call(rbind, res), "survival_fairness.csv")
+# Run in parallel
+future::plan("multisession")
+res <- furrr::future_map_dfr(tasks, run_all, N_rep = 2)
+write.csv(res, "survival_fairness.csv")
+
+# Run normally
+# res <- lapply(tasks, run_all, N_rep = 2)
+# write.csv(do.call(rbind, res), "survival_fairness.csv")
