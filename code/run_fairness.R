@@ -55,7 +55,7 @@ run_all = function(task, N_rep = 2, lrn = "surv.coxph", resamp = rsmp("holdout")
   ret = matrix(NA, length(measures), length(props))
 
   for (i in seq_along(props)) {
-    x = replicate(N_rep, runExp(
+    x = replicate(N_rep, run_one(
       p_disadv = props[[i]],
       resamp = resamp,
       lrn = lrn
