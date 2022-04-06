@@ -90,7 +90,7 @@ for (i in seq_along(files)) {
 # Run in parallel
 future::plan("multisession")
 res <- furrr::future_map_dfr(tasks, run_all, N_rep = 2)
-write.csv(res, "survival_fairness.csv")
+write.csv(res, fs::path(here::here("code"), "survival_fairness.csv"))
 
 # Run normally
 # res <- lapply(tasks, run_all, N_rep = 2)
