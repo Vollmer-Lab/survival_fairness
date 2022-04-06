@@ -1,5 +1,6 @@
 library(mlr3proba)
 library(dplyr)
+set.seed(24)
 
 run_all = function(task, N_rep = 2, lrn = "surv.coxph", resamp = rsmp("holdout")) {
   run_one = function(task = tsk("whas"), p_disadv = 0.5, lrn = "surv.coxph",
@@ -56,6 +57,7 @@ run_all = function(task, N_rep = 2, lrn = "surv.coxph", resamp = rsmp("holdout")
 
   for (i in seq_along(props)) {
     x = replicate(N_rep, run_one(
+      task = task,
       p_disadv = props[[i]],
       resamp = resamp,
       lrn = lrn
@@ -75,11 +77,18 @@ run_all = function(task, N_rep = 2, lrn = "surv.coxph", resamp = rsmp("holdout")
 
 files <- dir(here::here("code/data"), pattern = "\\.rds$", full.names = TRUE)
 names <- fs::path_ext_remove(fs::path_file(files))
-tasks <- mlr3misc::named_list(names)
 
-for (i in seq_along(files)) {
+file_stats <- purrr::map2_dfr(files, names, ~{
+  data = readRDS(.x)
+  data.frame(file = .x, name = .y, nrow = nrow(data), ncol = ncol(data))
+})
+file_stats <- file_stats[file_stats$nrow <= 1000, ]
+
+tasks <- mlr3misc::named_list(file_stats$name)
+
+for (i in seq_along(file_stats$file)) {
   data = readRDS(files[i])
-  
+
   task = as_task_surv(data, target = "time", event = "status", id = names[i])
   #task$set_col_roles("status", add_to = "stratum")
   
@@ -88,10 +97,19 @@ for (i in seq_along(files)) {
 }
 
 # Run in parallel
+tictoc::tic()
 future::plan("multisession")
 res <- furrr::future_map_dfr(tasks, run_all, N_rep = 2, .options = furrr::furrr_options(seed = TRUE))
 write.csv(res, fs::path(here::here("code"), "survival_fairness.csv"))
+tictoc::toc()
 
-# Run normally
+# Run sequentially
 # res <- lapply(tasks, run_all, N_rep = 2)
 # write.csv(do.call(rbind, res), "survival_fairness.csv")
+
+# Single run for debugging
+if (FALSE) {
+  tictoc::tic()
+  res <- run_all(tasks$hdfail, N_rep = 1)
+  tictoc::toc()
+}
