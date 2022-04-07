@@ -17,7 +17,7 @@ run_all = function(task, N_rep = 2, lrn = "surv.coxph", resamp = rsmp("holdout")
     dadv = rbinom(nrow(disadv), 1, p_disadv) == 1
     # permute
     for (which in colnames(disadv)) {
-      disadv[dadv, which] = sample(disadv[[which]])
+      disadv[dadv, which] = sample(disadv[dadv, which])
     }
 
     score_adv = resample(
@@ -107,7 +107,7 @@ message("Running on ", length(tasks), " tasks")
 # Single run for debugging
 if (FALSE) {
   tictoc::tic()
-  res <- run_all(tasks$child, N_rep = 1)
+  res <- run_all(tasks$flchain, N_rep = 1)
   tictoc::toc()
 }
 
