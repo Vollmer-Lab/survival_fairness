@@ -6,8 +6,7 @@ lgr::get_logger("mlr3")$set_threshold("warn")
 lgr::get_logger("bbotk")$set_threshold("warn")
 
 run_all = function(task, N_rep = 2, lrn = "surv.coxph", resamp = rsmp("holdout")) {
-  run_one = function(task = tsk("whas"), p_disadv = 0.5, lrn = "surv.coxph",
-                     resamp = rsmp("holdout")) {
+  run_one = function(task, p_disadv, lrn, resamp) {
     lrn = lrn(lrn)
     d = as.data.frame(task$data())
 
@@ -16,14 +15,9 @@ run_all = function(task, N_rep = 2, lrn = "surv.coxph", resamp = rsmp("holdout")
     disadv = d[split$test, ]
 
     dadv = rbinom(nrow(disadv), 1, p_disadv) == 1
-    sumdadv = sum(dadv)
+    # permute
     for (which in colnames(disadv)) {
-      col = disadv[[which]]
-      if (is.factor(col)) {
-        disadv[dadv, which] <- sample(levels(col), sumdadv, TRUE)
-      } else {
-        disadv[dadv, which] <- round(runif(sumdadv, min(col), max(col)))
-      }
+      disadv[dadv, which] = sample(disadv[[which]])
     }
 
     score_adv = resample(
@@ -37,10 +31,9 @@ run_all = function(task, N_rep = 2, lrn = "surv.coxph", resamp = rsmp("holdout")
       resamp
     )$aggregate(measures)
 
-    round(apply(
-      rbind(score_adv, score_disadv), 2,
-      function(x) abs(x[1] - x[2])
-    ), 3)
+    round(
+      apply(rbind(score_adv, score_disadv), 2, function(x) abs(x[1] - x[2])), 3
+    )
   }
 
   measures = c(
@@ -78,7 +71,6 @@ run_all = function(task, N_rep = 2, lrn = "surv.coxph", resamp = rsmp("holdout")
     select(Measure, Prop, Score, Task)
 }
 
-# tasks <- list(tsk("rats"), tsk("whas"))
 
 files <- dir(here::here("code/data"), pattern = "\\.rds$", full.names = TRUE)
 names <- fs::path_ext_remove(fs::path_file(files))
@@ -87,17 +79,14 @@ file_stats <- purrr::map2_dfr(files, names, ~{
   data = readRDS(.x)
   data.frame(file = .x, name = .y, nrow = nrow(data), ncol = ncol(data))
 })
-# file_stats <- file_stats[which(file_stats$nrow <= 1000), ]
+
 file_stats <- file_stats[which(!(file_stats$name %in% c("child", "hdfail"))), ]
 
 tasks <- mlr3misc::named_list(file_stats$name)
 
 for (i in seq_along(file_stats$file)) {
   data = readRDS(file_stats$file[i])
-
   task = as_task_surv(data, target = "time", event = "status", id = file_stats$name[i])
-  #task$set_col_roles("status", add_to = "stratum")
-
   tasks[[i]] = task
   rm(data, task)
 }
@@ -130,7 +119,7 @@ for (task in tasks) {
 
   message("Running on ", task$id)
 
-  res <- try(run_all(task, N_rep = 2))
+  res <- try(run_all(task, N_rep = 10, resamp = rsmp("cv", folds = 3)))
 
   if (inherits(res, "try-error")) {
     message("Failed at ", task$id)
@@ -142,10 +131,11 @@ for (task in tasks) {
 }
 
 # reassemble results to previously intended format
-res_full <- fs::dir_ls(here::here("code/results"), glob = "*.csv") |>
-  purrr::map_df(read.csv)
+res_full <- purrr::map_df(
+  fs::dir_ls(here::here("code/results"), glob = "*.csv"),
+  read.csv
+)
 
-# This is character(0) so everything worked I guess? I'm confused
 setdiff(names(tasks), unique(res_full$Task))
 
 write.csv(res_full, fs::path(here::here("code"), "survival_fairness.csv"))
