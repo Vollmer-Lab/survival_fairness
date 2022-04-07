@@ -52,7 +52,9 @@ run_all = function(task, N_rep = 2, lrn = "surv.coxph", resamp = rsmp("holdout")
     msr("surv.logloss", IPCW = TRUE, id = "SNL"),
     msr("surv.rcll", id = "RCLL"),
     msr("surv.cindex", id = "C_H"),
-    msr("surv.cindex", id = "C_U", weight_meth = "G2")
+    msr("surv.cindex", id = "C_U", weight_meth = "G2"),
+    msr("surv.calib_alpha", id = "calib_A"),
+    msr("surv.dcalib", id = "calib_D")
   )
 
   props = seq.int(0, 1, 0.1)
@@ -95,7 +97,7 @@ for (i in seq_along(file_stats$file)) {
 
   task = as_task_surv(data, target = "time", event = "status", id = file_stats$name[i])
   #task$set_col_roles("status", add_to = "stratum")
-  
+
   tasks[[i]] = task
   rm(data, task)
 }
@@ -125,11 +127,11 @@ fs::dir_create(here::here("code/results"))
 for (task in tasks) {
   res_path <- fs::path(here::here("code/results"), task$id, ext = "csv")
   if (fs::file_exists(res_path)) next
-  
+
   message("Running on ", task$id)
-  
+
   res <- try(run_all(task, N_rep = 2))
-  
+
   if (inherits(res, "try-error")) {
     message("Failed at ", task$id)
     next
