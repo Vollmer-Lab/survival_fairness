@@ -85,7 +85,8 @@ file_stats <- purrr::map2_dfr(files, names, ~{
   data = readRDS(.x)
   data.frame(file = .x, name = .y, nrow = nrow(data), ncol = ncol(data))
 })
-file_stats <- file_stats[file_stats$nrow <= 1000, ]
+# file_stats <- file_stats[which(file_stats$nrow <= 1000), ]
+file_stats <- file_stats[which(!(file_stats$name %in% c("child", "hdfail"))), ]
 
 tasks <- mlr3misc::named_list(file_stats$name)
 
