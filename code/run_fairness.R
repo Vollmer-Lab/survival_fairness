@@ -81,6 +81,7 @@ file_stats <- purrr::map2_dfr(files, names, ~{
 })
 
 file_stats <- file_stats[which(!(file_stats$name %in% c("child", "hdfail"))), ]
+file_stats <- file_stats[order(file_stats$nrow), ]
 
 tasks <- mlr3misc::named_list(file_stats$name)
 
@@ -92,17 +93,6 @@ for (i in seq_along(file_stats$file)) {
 }
 
 message("Running on ", length(tasks), " tasks")
-
-# Run in parallel
-# tictoc::tic()
-# future::plan("multisession")
-# res <- furrr::future_map_dfr(tasks, run_all, N_rep = 2, .options = furrr::furrr_options(seed = TRUE))
-# write.csv(res, fs::path(here::here("code"), "survival_fairness.csv"))
-# tictoc::toc()
-
-# Run sequentially
-# res <- lapply(tasks, run_all, N_rep = 2)
-# write.csv(do.call(rbind, res), "survival_fairness.csv")
 
 # Single run for debugging
 if (FALSE) {
@@ -129,6 +119,23 @@ for (task in tasks) {
   write.csv(res, file = res_path)
   message("Finished on ", task$id)
 }
+
+# Parallelization attempt failed, might be possible with more debugging
+# future::plan("multisession")
+# furrr::future_walk(tasks, ~{
+#   res_path <- fs::path(here::here("code/results"), .x$id, ext = "csv")
+#   if (fs::file_exists(res_path)) return(NULL)
+# 
+#   res <- run_all(.x, N_rep = 10, resamp = rsmp("cv", folds = 3))
+# 
+#   write.csv(res, file = res_path)
+# }, .options = furrr::furrr_options(seed = TRUE))
+# 
+# # reassemble results to previously intended format
+# res_full <- purrr::map_df(
+#   fs::dir_ls(here::here("code/results"), glob = "*.csv"),
+#   read.csv
+# )
 
 # reassemble results to previously intended format
 res_full <- purrr::map_df(
