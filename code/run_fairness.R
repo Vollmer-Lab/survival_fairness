@@ -130,12 +130,6 @@ for (task in tasks) {
 # 
 #   write.csv(res, file = res_path)
 # }, .options = furrr::furrr_options(seed = TRUE))
-# 
-# # reassemble results to previously intended format
-# res_full <- purrr::map_df(
-#   fs::dir_ls(here::here("code/results"), glob = "*.csv"),
-#   read.csv
-# )
 
 # reassemble results to previously intended format
 res_full <- purrr::map_df(
