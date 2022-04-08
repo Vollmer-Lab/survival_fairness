@@ -16,7 +16,7 @@ run_all = function(task, N_rep = 2, lrn = "surv.coxph", resamp = rsmp("holdout")
 
     dadv = rbinom(nrow(disadv), 1, p_disadv) == 1
     # permute
-    for (which in colnames(disadv)) {
+    for (which in setdiff(colnames(disadv), task$target_names)) {
       disadv[dadv, which] = sample(disadv[dadv, which])
     }
 
