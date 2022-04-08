@@ -80,7 +80,7 @@ file_stats <- purrr::map2_dfr(files, names, ~{
   data.frame(file = .x, name = .y, nrow = nrow(data), ncol = ncol(data))
 })
 
-file_stats <- file_stats[which(!(file_stats$name %in% c("child", "hdfail"))), ]
+file_stats <- file_stats[which(!(file_stats$name %in% c("child", "hdfail", "patient"))), ]
 file_stats <- file_stats[order(file_stats$nrow), ]
 
 tasks <- mlr3misc::named_list(file_stats$name)
