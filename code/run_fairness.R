@@ -20,6 +20,25 @@ run_all = function(task, N_rep = 2, lrn = "surv.coxph", resamp = rsmp("holdout")
       disadv[dadv, which] = sample(disadv[dadv, which])
     }
 
+# browser()
+
+  #   task = as_task_surv(adv, event = "status")
+  #   tt = partition(task)
+  #   plot_adv = autoplot(
+  #     lrn$train(task, row_ids = tt$train)$predict(task, row_ids = tt$test),
+  #     type = "calib", task = task, row_ids = tt$test
+  #   ) + theme_bw() + ggtitle("Advantaged") +
+  #     theme(legend.position = c(0.8, 0.8), legend.title = element_blank())
+
+  #   task = as_task_surv(disadv, event = "status")
+  #   tt = partition(task)
+  #   plot_disadv = autoplot(
+  #     lrn$train(task, row_ids = tt$train)$predict(task, row_ids = tt$test),
+  #     type = "calib", task = task, row_ids = tt$test
+  #   ) + theme_bw() + ggtitle("Disadvantaged") + theme(legend.position = "n")
+
+  # ggsave("results/calib.png", plot_adv + plot_disadv, width = 7, height = 4, units = "in")
+
     score_adv = resample(
       as_task_surv(adv, event = "status"),
       lrn,
@@ -97,7 +116,7 @@ message("Running on ", length(tasks), " tasks")
 # Single run for debugging
 if (FALSE) {
   tictoc::tic()
-  res <- run_all(tasks$flchain, N_rep = 1)
+  res <- run_all(tasks$grace, N_rep = 1)
   tictoc::toc()
 }
 
@@ -125,9 +144,9 @@ for (task in tasks) {
 # furrr::future_walk(tasks, ~{
 #   res_path <- fs::path(here::here("code/results"), .x$id, ext = "csv")
 #   if (fs::file_exists(res_path)) return(NULL)
-# 
+#
 #   res <- run_all(.x, N_rep = 10, resamp = rsmp("cv", folds = 3))
-# 
+#
 #   write.csv(res, file = res_path)
 # }, .options = furrr::furrr_options(seed = TRUE))
 
