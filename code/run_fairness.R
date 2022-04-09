@@ -1,5 +1,6 @@
 library(mlr3proba)
 library(dplyr)
+library(mlr3extralearners)
 set.seed(24)
 
 lgr::get_logger("mlr3")$set_threshold("warn")
@@ -128,7 +129,8 @@ for (task in tasks) {
 
   message("Running on ", task$id)
 
-  res <- try(run_all(task, N_rep = 10, resamp = rsmp("cv", folds = 3)))
+  res <- try(run_all(task, N_rep = 10, resamp = rsmp("cv", folds = 3),
+                      lrn = "surv.rfsrc"))
 
   if (inherits(res, "try-error")) {
     message("Failed at ", task$id)
@@ -158,4 +160,4 @@ res_full <- purrr::map_df(
 
 setdiff(names(tasks), unique(res_full$Task))
 
-write.csv(res_full, fs::path(here::here("code"), "survival_fairness.csv"))
+write.csv(res_full, fs::path(here::here("code"), "survival_fairness_rfsrc.csv"))
