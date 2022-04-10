@@ -100,7 +100,8 @@ file_stats <- purrr::map2_dfr(files, names, ~{
   data.frame(file = .x, name = .y, nrow = nrow(data), ncol = ncol(data))
 })
 
-file_stats <- file_stats[which(!(file_stats$name %in% c("child", "hdfail", "patient"))), ]
+# Exclude datasets that cause segfaults in intlogloss measure
+file_stats <- file_stats[which(!(file_stats$name %in% c("child", "hdfail", "patient", "metabric"))), ]
 file_stats <- file_stats[order(file_stats$nrow), ]
 
 tasks <- mlr3misc::named_list(file_stats$name)
@@ -146,11 +147,11 @@ for (task in tasks) {
 # furrr::future_walk(tasks, ~{
 #   res_path <- fs::path(here::here("code/results"), .x$id, ext = "csv")
 #   if (fs::file_exists(res_path)) return(NULL)
-#
-#   res <- run_all(.x, N_rep = 10, resamp = rsmp("cv", folds = 3))
-#
+# 
+#   res <- run_all(.x, N_rep = 10, resamp = rsmp("cv", folds = 3), lrn = "surv.rfsrc")
+# 
 #   write.csv(res, file = res_path)
-# }, .options = furrr::furrr_options(seed = TRUE))
+# }, .options = furrr::furrr_options(seed = TRUE, packages = c("mlr3extralearners")))
 
 # reassemble results to previously intended format
 res_full <- purrr::map_df(
