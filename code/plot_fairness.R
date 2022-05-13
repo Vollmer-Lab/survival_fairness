@@ -6,7 +6,7 @@ reval <- c(
   "RCLL" = "RCLL", "calib_A" = "CalA", "calib_D" = "CalD"
 )
 
-res <- read.csv("code/survival_fairness.csv")[, 3:6] %>%
+res <- read.csv("code/survival_fairness_rfsrc.csv") %>%
   dplyr::mutate(
     Measure = if_else(Measure %in% names(reval), reval[Measure], Measure)
   )
@@ -23,7 +23,7 @@ p_box <- fres %>%
   theme_bw() +
   theme(legend.position = "n", axis.title = element_text(size = 14),
         strip.background = element_rect(fill = "white"))
-ggsave("results/boxplots.png", p_box)
+ggsave("results/boxplots_rfsrc.png", p_box)
 
 agg_res <- res %>%
   dplyr::group_by(Measure, Prop) %>%
@@ -34,7 +34,7 @@ agg_res %>%
   dplyr::mutate(Score = round(Score, 3)) %>%
   tidyr::pivot_wider(names_from = Prop, values_from = Score) %>%
   dplyr::select(Measure, `0`, `0.2`, `0.4`, `0.6`, `0.8`, `1`) %>%
-  stargazer::stargazer(summary = FALSE, rownames = FALSE, out = "results/res.tex")
+  stargazer::stargazer(summary = FALSE, rownames = FALSE, out = "results/res_rfsrc.tex")
 
 meas <- unique(res$Measure)
 cor_mat <- data.frame(matrix(NA, length(meas), 3, FALSE, list(meas, c("r", "P", "m"))))
@@ -63,7 +63,7 @@ p_cor <- ggplot(cor_mat, aes(x = m, y = r, fill = P)) +
     panel.grid.major.x = element_blank(), panel.grid.minor.x = element_blank(),
     axis.title = element_text(size = 14)
   )
-ggsave("results/corplots.png", p_cor)
+ggsave("results/corplots_rfsrc.png", p_cor)
 
 # p_reg <- res %>%
 #   ggplot(aes(x = Prop, y = Score)) +
@@ -88,4 +88,4 @@ mat %>%
     Slope = if_else(p <= 0.05, paste0(Slope, "*"), as.character(Slope))
   ) %>%
   dplyr::select(-p) %>%
-  stargazer::stargazer(summary = FALSE, out = "results/lm.tex")
+  stargazer::stargazer(summary = FALSE, out = "results/lm_rfsrc.tex")
