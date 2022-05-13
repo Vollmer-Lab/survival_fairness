@@ -6,8 +6,11 @@ set.seed(24)
 lgr::get_logger("mlr3")$set_threshold("warn")
 lgr::get_logger("bbotk")$set_threshold("warn")
 
-run_all = function(task, N_rep = 2, lrn = "surv.coxph", resamp = rsmp("holdout")) {
-  run_one = function(task, p_disadv, lrn, resamp) {
+run_all = function(task, N_rep = 2, lrn = "surv.coxph",
+                    resamp = rsmp("holdout"), method = c("permute", "undersample")) {
+  method = match.arg(method)
+  run_one = function(task, p_disadv, lrn, resamp, method) {
+
     lrn = lrn(lrn)
     d = as.data.frame(task$data())
 
@@ -16,9 +19,13 @@ run_all = function(task, N_rep = 2, lrn = "surv.coxph", resamp = rsmp("holdout")
     disadv = d[split$test, ]
 
     dadv = rbinom(nrow(disadv), 1, p_disadv) == 1
-    # permute
-    for (which in setdiff(colnames(disadv), task$target_names)) {
-      disadv[dadv, which] = sample(disadv[dadv, which])
+
+    if (method == "permute") {
+      for (which in setdiff(colnames(disadv), task$target_names)) {
+        disadv[dadv, which] = sample(disadv[dadv, which])
+      }
+    } else {
+      disadv = disadv[!dadv, ]
     }
 
 # browser()
@@ -59,11 +66,18 @@ run_all = function(task, N_rep = 2, lrn = "surv.coxph", resamp = rsmp("holdout")
   measures = c(
     msr("surv.graf", id = "IGS"),
     msr("surv.graf", proper = TRUE, id = "IGS_proper"),
+    msr("surv.graf", id = "IGS_ERV", ERV = TRUE),
+    msr("surv.graf", proper = TRUE, id = "IGS_proper_ERV", ERV = TRUE),
     msr("surv.intlogloss", id = "ILL"),
     msr("surv.intlogloss", proper = TRUE, id = "ILL_proper"),
+    msr("surv.intlogloss", id = "ILL_ERV", ERV = TRUE),
+    msr("surv.intlogloss", proper = TRUE, id = "ILL_proper_ERV", ERV = TRUE),
     msr("surv.logloss", IPCW = FALSE, id = "NLL"),
     msr("surv.logloss", IPCW = TRUE, id = "SNL"),
+    msr("surv.logloss", IPCW = FALSE, id = "NLL_ERV", ERV = TRUE),
+    msr("surv.logloss", IPCW = TRUE, id = "SNL_ERV", ERV = TRUE),
     msr("surv.rcll", id = "RCLL"),
+    msr("surv.rcll", id = "RCLL_ERV", ERV = TRUE),
     msr("surv.cindex", id = "C_H"),
     msr("surv.cindex", id = "C_U", weight_meth = "G2"),
     msr("surv.calib_alpha", id = "calib_A"),
@@ -78,7 +92,8 @@ run_all = function(task, N_rep = 2, lrn = "surv.coxph", resamp = rsmp("holdout")
       task = task,
       p_disadv = props[[i]],
       resamp = resamp,
-      lrn = lrn
+      lrn = lrn,
+      method = method
     ))
     x[x == Inf] = NA
     ret[, i] = rowMeans(x, na.rm = TRUE)
@@ -147,9 +162,9 @@ for (task in tasks) {
 # furrr::future_walk(tasks, ~{
 #   res_path <- fs::path(here::here("code/results"), .x$id, ext = "csv")
 #   if (fs::file_exists(res_path)) return(NULL)
-# 
+#
 #   res <- run_all(.x, N_rep = 10, resamp = rsmp("cv", folds = 3), lrn = "surv.rfsrc")
-# 
+#
 #   write.csv(res, file = res_path)
 # }, .options = furrr::furrr_options(seed = TRUE, packages = c("mlr3extralearners")))
 
