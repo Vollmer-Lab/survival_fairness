@@ -25,7 +25,12 @@ run_all = function(task, N_rep = 2, lrn = "surv.coxph",
         disadv[dadv, which] = sample(disadv[dadv, which])
       }
     } else {
-      disadv = disadv[!dadv, ]
+      # hacky undersampling
+      rows = c(
+        sample(which(task$status(split$test) == 1), sum(task$status(split$test) == 1) * (1 - p_disadv)),
+        sample(which(task$status(split$test) == 0), sum(task$status(split$test) == 0) * (1 - p_disadv))
+      )
+      disadv = disadv[rows, ]
     }
 
 # browser()
@@ -84,7 +89,7 @@ run_all = function(task, N_rep = 2, lrn = "surv.coxph",
     msr("surv.dcalib", id = "calib_D")
   )
 
-  props = seq.int(0, 1, 0.1)
+  props = seq.int(0, 0.9, 0.1)
   ret = matrix(NA, length(measures), length(props))
 
   for (i in seq_along(props)) {
@@ -133,7 +138,7 @@ message("Running on ", length(tasks), " tasks")
 # Single run for debugging
 if (FALSE) {
   tictoc::tic()
-  res <- run_all(tasks$grace, N_rep = 1)
+  res <- run_all(tasks$veteran, N_rep = 1, method = "under")
   tictoc::toc()
 }
 
