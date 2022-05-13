@@ -146,7 +146,7 @@ for (task in tasks) {
   message("Running on ", task$id)
 
   res <- try(run_all(task, N_rep = 10, resamp = rsmp("cv", folds = 3),
-                      lrn = "surv.rfsrc"))
+                      lrn = "surv.rfsrc", method = "permute"))
 
   if (inherits(res, "try-error")) {
     message("Failed at ", task$id)
@@ -176,4 +176,4 @@ res_full <- purrr::map_df(
 
 setdiff(names(tasks), unique(res_full$Task))
 
-write.csv(res_full, fs::path(here::here("code"), "survival_fairness_rfsrc.csv"))
+write.csv(res_full, fs::path(here::here("code"), "res_rfsrc_permute.csv"))
