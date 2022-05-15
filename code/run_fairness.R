@@ -120,8 +120,8 @@ file_stats <- purrr::map2_dfr(files, names, ~{
   data.frame(file = .x, name = .y, nrow = nrow(data), ncol = ncol(data))
 })
 
-# Exclude datasets that cause segfaults in intlogloss measure
-file_stats <- file_stats[which(!(file_stats$name %in% c("child", "hdfail", "patient", "metabric"))), ]
+# Exclude datasets that are just too large
+file_stats <- file_stats[which(!(file_stats$name %in% c("child", "hdfail"))), ]
 file_stats <- file_stats[order(file_stats$nrow), ]
 
 tasks <- mlr3misc::named_list(file_stats$name)
@@ -138,7 +138,8 @@ message("Running on ", length(tasks), " tasks")
 # Single run for debugging
 if (FALSE) {
   tictoc::tic()
-  res <- run_all(tasks$veteran, N_rep = 1, method = "under")
+  res <- run_all(tasks$STR.data, N_rep = 10, resamp = rsmp("cv", folds = 3),
+                 lrn = "surv.rfsrc", method = "undersample")
   tictoc::toc()
 }
 
@@ -151,7 +152,7 @@ for (task in tasks) {
   message("Running on ", task$id)
 
   res <- try(run_all(task, N_rep = 10, resamp = rsmp("cv", folds = 3),
-                      lrn = "surv.rfsrc", method = "permute"))
+                      lrn = "surv.rfsrc", method = "undersample"))
 
   if (inherits(res, "try-error")) {
     message("Failed at ", task$id)
@@ -162,13 +163,13 @@ for (task in tasks) {
   message("Finished on ", task$id)
 }
 
-# Parallelization attempt failed, might be possible with more debugging
+# Parallelized version preferred if it works
 # future::plan("multisession")
 # furrr::future_walk(tasks, ~{
 #   res_path <- fs::path(here::here("code/results"), .x$id, ext = "csv")
 #   if (fs::file_exists(res_path)) return(NULL)
 #
-#   res <- run_all(.x, N_rep = 10, resamp = rsmp("cv", folds = 3), lrn = "surv.rfsrc")
+#   res <- run_all(.x, N_rep = 10, resamp = rsmp("cv", folds = 3), lrn = "surv.rfsrc", method = "undersample")
 #
 #   write.csv(res, file = res_path)
 # }, .options = furrr::furrr_options(seed = TRUE, packages = c("mlr3extralearners")))
@@ -181,4 +182,4 @@ res_full <- purrr::map_df(
 
 setdiff(names(tasks), unique(res_full$Task))
 
-write.csv(res_full, fs::path(here::here("code"), "res_rfsrc_permute.csv"))
+write.csv(res_full, fs::path(here::here("code"), "res_rfsrc_undersample.csv"))
