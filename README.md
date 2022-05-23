@@ -28,7 +28,6 @@ and `p_binary` are binary variables (either factors or integers).
 |liver            |  488|     292|  40.2|  2|     1|        1|      0|
 |lung             |  167|     120|  28.1|  7|     5|        1|      1|
 |metabric         | 1903|    1103|  42.0|  9|     5|        4|      0|
-|mgus             |  176|     165|   6.2|  7|     6|        1|      0|
 |nafld1           | 4000|     322|  92.0|  5|     4|        1|      0|
 |nwtco            | 4028|     571|  85.8|  3|     1|        1|      1|
 |ova              |  358|     266|  25.7|  5|     1|        1|      3|
