@@ -1,4 +1,6 @@
-# Model Agnostic Group Fairness Metrics for Survival Analysis
+# Flexible Group Fairness Metrics for Survival Analysis 
+
+Supporting code for Sonabend R., Pfisterer F., Mishler A., Schauer M., Burk L., Vollmer S. 2022. Flexible Group Fairness Metrics for Survival Analysis.
 
 
 ## Dataset Overview
