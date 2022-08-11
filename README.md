@@ -1,9 +1,23 @@
-# Flexible Group Fairness Metrics for Survival Analysis 
+# Sonabend, R., Pfisterer, F., Mishler, A., Schauer, M., Burk, L., & Vollmer, S. (2022). Flexible Group Fairness Metrics for Survival Analysis. [http://arxiv.org/abs/2206.03256](http://arxiv.org/abs/2206.03256).
 
-Supporting code for Sonabend R., Pfisterer F., Mishler A., Schauer M., Burk L., Vollmer S. 2022. Flexible Group Fairness Metrics for Survival Analysis.
+All content in this repository is licenced under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). All code is licenced under [MIT](https://github.com/Vollmer-Lab/survival_fairness/blob/main/LICENSE).
+
+* [Paper](http://arxiv.org/abs/2206.03256)
+* [Poster](#poster)
+* [Citation](https://github.com/Vollmer-Lab/survival_fairness/blob/main/CITATION)
+* [Code](https://github.com/Vollmer-Lab/survival_fairness/tree/main/code)
+* [Results](https://github.com/Vollmer-Lab/survival_fairness/tree/main/results)
+* [Datasets](#datasets)
 
 
-## Dataset Overview
+# Poster
+
+![Poster](poster.png)
+
+
+# Datasets
+
+[Datasets in .rds format](https://github.com/Vollmer-Lab/survival_fairness/tree/main/code/data)
 
 An overview of included datasets from publicly available R packages with their
 number of observations (`N`), number of observed events (`N_event`), the censoring proportion (`CensP`), 
