@@ -1,0 +1,11 @@
+@article{Sonabend2022a,
+abstract = {Algorithmic fairness is an increasingly important field concerned with detecting and mitigating biases in machine learning models. There has been a wealth of literature for algorithmic fairness in regression and classification however there has been little exploration of the field for survival analysis. Survival analysis is the prediction task in which one attempts to predict the probability of an event occurring over time. Survival predictions are particularly important in sensitive settings such as when utilising machine learning for diagnosis and prognosis of patients. In this paper we explore how to utilise existing survival metrics to measure bias with group fairness metrics. We explore this in an empirical experiment with 29 survival datasets and 8 measures. We find that measures of discrimination are able to capture bias well whereas there is less clarity with measures of calibration and scoring rules. We suggest further areas for research including prediction-based fairness metrics for distribution predictions.},
+archivePrefix = {arXiv},
+arxivId = {2206.03256},
+author = {Sonabend, Raphael and Pfisterer, Florian and Mishler, Alan and Schauer, Moritz and Burk, Lukas and Vollmer, Sebastian},
+eprint = {2206.03256},
+month = {may},
+title = {{Flexible Group Fairness Metrics for Survival Analysis}},
+url = {http://arxiv.org/abs/2206.03256},
+year = {2022}
+}
