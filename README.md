@@ -5,6 +5,8 @@ All content in this repository is licenced under [CC BY 4.0](https://creativecom
 
 * [Paper](http://arxiv.org/abs/2206.03256)
 * [Poster](#poster)
+* [Video](https://youtu.be/Cte0R-8GDtw)
+* [Slides](https://github.com/Vollmer-Lab/survival_fairness/blob/main/survival_fairness.pptx)
 * [Citation](https://github.com/Vollmer-Lab/survival_fairness/blob/main/CITATION)
 * [Code](https://github.com/Vollmer-Lab/survival_fairness/tree/main/code)
 * [Results](https://github.com/Vollmer-Lab/survival_fairness/tree/main/results)
