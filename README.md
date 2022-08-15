@@ -1,4 +1,4 @@
-# Flexible Group Fairness Metrics for Survival Analysis. 
+# Flexible Group Fairness Metrics for Survival Analysis
 ## Sonabend, R., Pfisterer, F., Mishler, A., Schauer, M., Burk, L., Mukherjee, S. & Vollmer, S. (2022). [http://arxiv.org/abs/2206.03256](http://arxiv.org/abs/2206.03256). 
 
 All content in this repository is licenced under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). All code is licenced under [MIT](https://github.com/Vollmer-Lab/survival_fairness/blob/main/LICENSE).
