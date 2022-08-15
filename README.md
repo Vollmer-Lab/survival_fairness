@@ -5,8 +5,8 @@ All content in this repository is licenced under [CC BY 4.0](https://creativecom
 
 | Paper | Presentation | Experiment |
 |---|---|---|
-| [Paper](http://arxiv.org/abs/2206.03256) <br> [Citation](https://github.com/Vollmer-Lab/survival_fairness/blob/main/CITATION) | [Video](https://youtu.be/Cte0R-8GDtw) <br> [Slides](https://github.com/Vollmer-Lab/survival_fairness/blob/main/survival_fairness.pptx) | [Code](https://github.com/Vollmer-Lab/survival_fairness/tree/main/code) <br> [Results](https://github.com/Vollmer-Lab/survival_fairness/tree/main/results) <br> [Datasets](https://github.com/Vollmer-Lab/survival_fairness/blob/main/code/README.md) |
-
+| 1. [Paper](http://arxiv.org/abs/2206.03256) 2. [Citation](https://github.com/Vollmer-Lab/survival_fairness/blob/main/CITATION) | 3. [Video](https://youtu.be/Cte0R-8GDtw) 4. [Slides](https://github.com/Vollmer-Lab/survival_fairness/blob/main/survival_fairness.pptx) | 5. [Code](https://github.com/Vollmer-Lab/survival_fairness/tree/main/code) 6. [Results](https://github.com/Vollmer-Lab/survival_fairness/tree/main/results) 7. [Datasets](https://github.com/Vollmer-Lab/survival_fairness/blob/main/code/README.md) |
+  
 ![Poster](poster.png)
 
 
